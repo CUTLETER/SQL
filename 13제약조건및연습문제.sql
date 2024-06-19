@@ -1,0 +1,140 @@
+-- 제약 조건 (컬럼에 대한 데이터 수정, 삭제, 삽입 등 이상 현상을 방지하기 위한 조건)
+-- PRIMARY KEY : 테이블이 가진 고유한 KEY, 중복 X, NULL X, 테이블 안에서 ONLY ONE
+-- NOT NULL : NULL을 허용하지 않음
+-- UNIQUE KEY : 중복 X, NULL O
+-- FOREIGN KEY : 참조하는 테이블의 PK를 넣어놓은 키, 중복 O, NULL O
+-- CHECK : 컬럼에 대한 데이터 제한
+
+-- 전체 제약 조건 확인
+SELECT * FROM USER_CONSTRAINTS;
+
+DROP TABLE DEPTS;
+
+-- (열 레벨 제약 조건)
+CREATE TABLE DEPTS (
+        DEPT_NO NUMBER (2)            CONSTRAINT DEPTS_DEPT_NO_PK PRIMARY KEY,
+        DEPT_NAME VARCHAR2(30) /*CONSTRAINT DEPS_DEPT_NAME_NN -- 'NOT NULL'에선 생략 가능*/ NOT NULL,
+        DEPT_DATE DATE                   DEFAULT SYSDATE, -- 제약 조건은 아님 (컬럼의 기본값)
+        DEPT_PHONE VARCHAR2(30)  CONSTRAINT DEPTS_DEPT_PHONE_UK UNIQUE,
+        DEPT_GENDER CHAR(1)         CONSTRAINT DEPTS_DEPT_GENDER_CK CHECK( /*조건*/ DEPT_GENDER IN ('F','M')),
+        LOCA_ID NUMBER(4)              CONSTRAINT DEPTS_LOCA_ID_FK REFERENCES /*참조 테이블 (주키)*/ LOCATIONS (LOCATION_ID)
+);
+
+INSERT INTO DEPTS (DEPT_NO, DEPT_NAME, DEPT_PHONE, DEPT_GENDER, LOCA_ID) 
+VALUES (1, NULL, '01012345678', 'F', 1700); -- DEPT_NAME의 NOT NULL 제약에 위배됨
+
+INSERT INTO DEPTS (DEPT_NO, DEPT_NAME, DEPT_PHONE, DEPT_GENDER, LOCA_ID) 
+VALUES (1, 'HONG', '01012345678', 'X', 1700); -- DEPT_GENDER의 CHECK 제약에 위배됨
+
+INSERT INTO DEPTS (DEPT_NO, DEPT_NAME, DEPT_PHONE, DEPT_GENDER, LOCA_ID) 
+VALUES (1, 'HONG', '01012345678', 'F', 100); -- LOCA_ID의 참조 제약에 위배됨
+
+INSERT INTO DEPTS (DEPT_NO, DEPT_NAME, DEPT_PHONE, DEPT_GENDER, LOCA_ID) 
+VALUES (1, 'HONG', '01012345678', 'F', 1700); -- 성공!
+
+
+-- (테이블 레벨 제약 조건)
+DROP TABLE DEPTS;
+CREATE TABLE DEPTS (
+        DEPT_NO NUMBER(2),
+        DEPT_NAME VARCHAR2 (30) NOT NULL, --NOT NULL 은 열 레벨의 정의 
+        DEPT_DATE DATE DEFAULT SYSDATE,
+        DEPT_PHONE VARCHAR2(30),
+        DEPT_GENDER CHAR(1),
+        LOCA_ID NUMBER(4),
+        CONSTRAINT DEPT_DEPT_NO_PK PRIMARY KEY (DEPT_NO/*, DEPT_NAME*/), -- 컬럼명 (슈퍼키(2개 이상의 컬럼을 PK로 묶은 것)는 테이블 레벨로 지정 가능함)
+        CONSTRAINT DEPT_DEPT_PHONE_UK UNIQUE (DEPT_PHONE),
+        CONSTRAINT DEPT_GENDER_CK CHECK (DEPT_GENDER IN ('F','M')),
+        CONSTRAINT DEPT_LOCA_ID_FK FOREIGN KEY (LOCA_ID) REFERENCES LOCATIONS (LOCATION_ID)      
+);
+
+DROP TABLE DEPTS;
+
+--------------------------------------------------------------------------------------
+
+-- ALTER로 제약 조건 추가
+CREATE TABLE DEPTS (
+        DEPT_NO NUMBER(2),
+        DEPT_NAME VARCHAR2 (30),
+        DEPT_DATE DATE DEFAULT SYSDATE,
+        DEPT_PHONE VARCHAR2(30),
+        DEPT_GENDER CHAR(1),
+        LOCA_ID NUMBER(4)
+);
+--PK 추가
+ALTER TABLE DEPTS ADD CONSTRAINT DEPT_DEPT_NO_PK PRIMARY KEY (DEPT_NO);
+
+--NOT NULL은 열 변경 (MODIFY)로 추가
+ALTER TABLE DEPTS MODIFY DEPT_NAME VARCHAR2(30) NOT NULL;
+
+--UNIQUE 추가
+ALTER TABLE DEPTS ADD CONSTRAINT DEPT_DEPT_PHONE_UK UNIQUE (DEPT_PHONE);
+
+--FK 추가
+ALTER TABLE DEPTS ADD CONSTRAINT DEPT_LOCA_ID_FK FOREIGN KEY (LOCA_ID) REFERENCES LOCATIONS (LOCATION_ID);
+
+--CHECK 추가
+ALTER TABLE DEPTS ADD CONSTRAINT DEPT_DEPT_GENDER_CK CHECK(DEPT_GENDER IN ('F', 'M'));
+
+--제약 조건 삭제 DROP
+ALTER TABLE DEPTS DROP CONSTRAINT DEPT_DEPT_GENDER_CK;
+
+--------------------------------------------------------------------------------------
+-- 연습 문제
+
+
+--문제1.
+--다음과 같은 테이블을 생성하고 데이터를 insert해보세요.
+CREATE TABLE MEM (
+        M_NAME VARCHAR2(20) NOT NULL,
+        M_NUM NUMBER(2)        CONSTRAINT MEM_MEMNUM_PK PRIMARY KEY,
+        REG_DATE DATE            CONSTRAINT MEM_REGDATE_UK UNIQUE ,
+        GENDER CHAR(1)           CONSTRAINT MEM_GENDER_CK CHECK (GENDER IN ('F','M')),
+        LOCA NUMBER(4)           CONSTRAINT MEM_LOCA_LOC_LOCID_FK REFERENCES LOCATIONS (LOCATION_ID)
+);
+
+SELECT * FROM MEM;
+INSERT INTO MEM VALUES ('AAA',1, TO_DATE('2018-07-01', 'YYYY-MM-DD'),'M',1800);
+INSERT INTO MEM VALUES ('BBB',2,TO_DATE('2018-07-02', 'YYYY-MM-DD'),'F',1900);
+INSERT INTO MEM VALUES ('CCC',3,TO_DATE('2018-07-03', 'YYYY-MM-DD'),'M',2000);
+INSERT INTO MEM VALUES ('DDD',4,SYSDATE,'M',2000);
+INSERT INTO MEM VALUES ('EEE',5,'2018-07-04','M',2000);
+
+DELETE FROM MEM WHERE M_NAME = 'DDD';
+
+--테이블 제약조건은 아래와 같습니다. 
+--조건) M_NAME 는 가변문자형 20byte, 널값을 허용하지 않음
+--조건) M_NUM 은 숫자형 5자리, PRIMARY KEY 이름(mem_memnum_pk) 
+--조건) REG_DATE 는 날짜형, 널값을 허용하지 않음, UNIQUE KEY 이름:(mem_regdate_uk)
+--조건) GENDER 고정문자형 1byte, CHECK제약 (M, F)
+--조건) LOCA 숫자형 4자리, FOREIGN KEY ? 참조 locations테이블(location_id) 이름:(mem_loca_loc_locid_fk)
+
+--| M_NAME | M_NUM | REG_DATE | GENDER | LOCA |
+--| --- | --- | --- | --- | --- |
+--| AAA | 1 | 2018-07-01 | M | 1800 |
+--| BBB | 2 | 2018-07-02 | F | 1900 |
+--| CCC | 3 | 2018-07-03 | M | 2000 |
+--| DDD | 4 | 오늘날짜 | M | 2000 |
+
+--문제2.
+--도서 대여 이력 테이블을 생성하려 합니다.
+--도서 대여 이력 테이블은
+--대여번호(숫자) PK, 대출도서번호(문자), 대여일(날짜), 반납일(날짜), 반납여부(Y/N)
+--를 가집니다.
+--적절한 테이블을 생성해 보세요.
+
+CREATE TABLE BOOK (
+        B_NUM NUMBER(2)                  CONSTRAINT BOOK_B_NUM_PK PRIMARY KEY,
+        B_NUMBERING VARCHAR2(30) CONSTRAINT BOOK_B_NUMBERING_UK UNIQUE,
+        B_START DATE,
+        B_END DATE,
+        B_YN CHAR(1)                          CONSTRAINT BOOK_B_YN CHECK (B_YN IN ('Y','N'))
+);
+
+INSERT INTO BOOK VALUES (1,'ㅎ.23.이',TO_DATE('2300-01-01', 'YYYY-MM-DD'), TO_DATE('2400-12-31','YYYY-MM-DD'),'Y');
+INSERT INTO BOOK VALUES (2, 'ㄷ.354.차', TO_DATE('2024-06-18', 'YYYY-MM-DD'), TO_DATE('2030-06-18', 'YYYY-MM-DD'), 'Y');
+INSERT INTO BOOK VALUES (3, 'ㅈ.12.밀', TO_DATE('2001-05-29', 'YYYY-MM-DD'),NULL,'N');
+INSERT INTO BOOK VALUES (4, 'ㅋ.283.알', TO_DATE('1945-04-24', 'YYYY-MM-DD'), NULL, 'N');
+
+SELECT * FROM BOOK;
+```
